@@ -1,69 +1,110 @@
-#Data Structures(CS2302)
-#Lester Ibarra
-#Sentiment Analysis
-#Aguirre, Diego
-#Nath, Anindita
+'''
+Lester Ibarra
+80578839
+Diego Aguirre
+'''
 import nltk
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 import praw
+
 reddit = praw.Reddit(client_id='HjIibYz3lhgCJg',
                      client_secret='SBMs3bHf_jvEd18IB96Z8kgqVI4',
                      user_agent= 'Llibarra2'
                      )#This allows access to the subreddit
+
 nltk.download('vader_lexicon')
 sid = SentimentIntensityAnalyzer()
 
+
 def get_text_negative_proba(text):
-    return sid.polarity_scores(text)['neg']#provides a score between 1 and 0, closests to 1 meaning a negative comment
+   return sid.polarity_scores(text)['neg']
+
 
 def get_text_neutral_proba(text):
-    return sid.polarity_scores(text)['neu']#provides a score between 1 and 0, closests to 1 meaning a neutral comment
+   return sid.polarity_scores(text)['neu']
+
 
 def get_text_positive_proba(text):
-    return sid.polarity_scores(text)['pos']#provides a score between 1 and 0, closests to 1 meaning a positive comment
+   return sid.polarity_scores(text)['pos']
 
-def get_submission_comments(url):#receives url of subreddit and returns all comments including replies as well
+
+def get_submission_comments(url):
     submission = reddit.submission(url=url)
-    submission.comments.replace_more(limit=None)
+    submission.comments.replace_more()
 
     return submission.comments
 
-def comment_processor(text, n):#receives array of all comments and replies as well as an integer with starting value 0
-    list_neg,list_pos,list_neu = [],[],[] 
-    if n==len(text):
-        return list_neg,list_pos,list_neu#returns three list contaning all possible comments with their respective sensitivity
-    comment = text[n].body
-    pos = get_text_positive_proba(comment)#gives value for comment being positive
-    neg = get_text_negative_proba(comment)#gives value for comment being negative
-    neu = get_text_neutral_proba(comment)#gives value for comment being neutral
-    if(pos>neg and pos>neu):#compares values received to see dominating sensitivity
-        list_pos.append(comment)
-    if(neg>pos and neg>neu):
-        list_neg.append(comment)
-    if(neu>pos and neu>neg):
-        list_neu.append(comment)
-    n+=1
-    comment_processor(text, n)#recursive statement
-    
-def main():#code was tested with (https://www.reddit.com/r/politics/comments/9gxu84/donald_trump_is_actively_obstructing_justice/ and
-            #https://www.reddit.com/r/dogs/comments/9h0ela/fluff_i_realized_my_dog_is_a_solid_protector/)
-            #These two subreddits were tested as they involve politics which can be very much contriversial, meaning negative comments would be more precedent
-            #and story of a dog, which would most likely contain positive comments
+
+def process_comments(comment, a, b, c):
+    #Returns an empty string if the object comment is null
+    if comment is None:
+        return ''
+
+    #Stores body of comment in variable text
+    text = comment.body
+
+    #Assigns probabilities for the comment being negative, neutral and positive
+    neg = get_text_negative_proba(text)
+    neu = get_text_neutral_proba(text)
+    pos = get_text_positive_proba(text)
+
+    #Stores all probabilities in a list
+    prob = [neg, neu, pos]
+
+    #Appends coment to the list corresponding to the category with the highest probability (negative, neutral, or positive)
+    if neg == max(prob):
+        a.append(text)
+    if neu == max(prob):
+        b.append(text)
+    if pos == max(prob):
+        c.append(text)
+
+    #If the comment has any replies, calls the process_comments method for each of those replies
+    if comment.replies:
+        for i in range(len(comment.replies)):
+            process_comments(comment.replies[i], a, b, c)
+
+    #Returns all three lists of processed comments
+    return [a, b, c]
+
+def main():
+    #Creates string of all unprocessed comments extracted from Reddit
     comments = get_submission_comments('https://www.reddit.com/r/learnprogramming/comments/5w50g5/eli5_what_is_recursion/')
-    all_comments_and_replies = comments.list()#able to list all comments and replies from subreddit
-    n = 0
-    list_neg,list_pos,list_neu = [],[],[] 
-    list_neg,list_pos,list_neu = comment_processor(all_comments_and_replies, n)#The returned lists are placed inside new lists
 
-    print("Negative Comments")
-    for i in range(len(list_a)):#Prints all negative comments
-        print(list_a[i])
+    #Initializes lists that will contain processed comments
+    neg = []
+    neu = []
+    pos = []
 
-    print("Positive Comments")    
-    for i in range(len(list_b)):#Prints all positive comments
-        print(list_b[i])
+    #Initializes list that will contain all sets of processed comments
+    processed_comments = []
 
-    print("Neutral Comments")
-    for i in range(len(list_c)):#Prints all neutral comments
-        print(list_c[i])
+    #Calls processing method for all root comments
+    for i in range(len(comments)):
+        #Updates list to include the most recent lists of processed comments in each iteration
+        processed_comments = (process_comments(comments[i], neg, neu, pos))
+
+    #Prints as many as 10 sample comments from each category (i.e., 10 negative ones, 10 neutral ones, etc)
+    for i in range(len(processed_comments)):
+        if i == 0:
+            print('The negative comments of the subreddit are:')
+        if i == 1:
+            print('The neutral comments of the subreddit are:')
+        if i == 2:
+            print('The postive comments of the subreddit are:')
+
+        #If there are more than 10 comments in a category, prints the first 10
+        if len(processed_comments[i]) > 9:
+            for j in range(9):
+                print(processed_comments[i][j])
+
+        #If there are less than 10 comments in a category, prints all of them
+        else:
+            for j in range(len(processed_comments[i])):
+                print(processed_comments[i][j])
+
+        print()
+
+
+
 main()
